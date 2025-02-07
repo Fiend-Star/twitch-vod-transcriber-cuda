@@ -1,5 +1,8 @@
 FROM nvidia/cuda:12.1.0-base-ubuntu22.04
+
 ENV DEBIAN_FRONTEND=noninteractive
+ENV DENO_INSTALL=/home/deno/.deno
+ENV PATH=${DENO_INSTALL}/bin:${PATH}
 
 # Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -20,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create user
-RUN useradd -m -s /bin/fish deno
+RUN useradd -m -s /usr/bin/fish deno
 USER deno
 WORKDIR /home/deno
 
@@ -30,10 +33,10 @@ RUN mkdir -p /home/deno/.config/fish
 # Install Deno
 RUN curl -fsSL https://deno.land/x/install/install.sh | sh
 
-# Update Fish config with Deno, welcome message, and download alias
-RUN echo '# Deno setup' > /home/deno/.config/fish/config.fish && \
+# Update Fish config
+RUN echo '# Environment setup' > /home/deno/.config/fish/config.fish && \
     echo 'set -gx DENO_INSTALL "$HOME/.deno"' >> /home/deno/.config/fish/config.fish && \
-    echo 'fish_add_path $DENO_INSTALL/bin' >> /home/deno/.config/fish/config.fish && \
+    echo 'set -gx PATH $DENO_INSTALL/bin $PATH' >> /home/deno/.config/fish/config.fish && \
     echo '' >> /home/deno/.config/fish/config.fish && \
     echo 'if status is-interactive' >> /home/deno/.config/fish/config.fish && \
     echo '  echo ""' >> /home/deno/.config/fish/config.fish && \
@@ -48,10 +51,12 @@ RUN echo '# Deno setup' > /home/deno/.config/fish/config.fish && \
     echo '  echo ""' >> /home/deno/.config/fish/config.fish && \
     echo 'end' >> /home/deno/.config/fish/config.fish && \
     echo '' >> /home/deno/.config/fish/config.fish && \
-    echo 'alias download="deno run --allow-net --allow-run --allow-read --allow-write --allow-env --allow-ffi src/main.ts"' >> /home/deno/.config/fish/config.fish
+    echo 'alias download="$DENO_INSTALL/bin/deno run --allow-net --allow-run --allow-read --allow-write --allow-env --allow-ffi src/main.ts"' >> /home/deno/.config/fish/config.fish
 
 # Set Fish as the shell
-SHELL ["/bin/fish", "-c"]
+SHELL ["/usr/bin/fish", "-c"]
 
-# Verify Deno installation
-RUN deno --version
+# Verify installations
+RUN $DENO_INSTALL/bin/deno --version && \
+    python3 --version && \
+    whisper --help

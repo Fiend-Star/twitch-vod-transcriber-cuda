@@ -60,6 +60,8 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
 
    ```bash
    deno run --allow-net --allow-run --allow-read --allow-write --allow-env --allow-ffi src/main.ts
+   or
+   /home/deno/.deno/bin/deno run --allow-net --allow-run --allow-read --allow-write --allow-env --allow-ffi src/main.ts
    ```
 
    Permissions explanation:
