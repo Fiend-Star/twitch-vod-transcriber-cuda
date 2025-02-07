@@ -1,0 +1,20 @@
+# Ignore all files in data directory
+data/*
+
+# Ignore environment files
+.env
+.env.local
+.env.*.local
+
+# Ignore sensitive configuration files
+*.secret
+*.credentials
+
+# Ignore system and IDE files
+.DS_Store
+.idea/
+.vscode/
+
+# Ignore logs and temporary files
+*.log
+*.tmp

@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  twitch-downloader:
+    build: .
+    container_name: twitch-vod-downloader
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./videos.json:/app/videos.json
+      - ./transcripts.json:/app/transcripts.json
+      - ./vods:/app/vods
+    command: ["deno", "task", "start"]
