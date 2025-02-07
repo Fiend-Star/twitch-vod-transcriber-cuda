@@ -1,6 +1,7 @@
 {
   "name": "Twitch VOD Downloader",
   "build": { "dockerfile": "Dockerfile" },
+  "runArgs": ["--gpus", "all"],
   "customizations": {
     "vscode": {
       "settings": {

@@ -11,7 +11,9 @@ async function attemptDownload(outputFile: string, videoUrl: string, attempt = 1
     const retryDelay = 5_000;
 
     console.log(`📥 Downloading: ${videoUrl} (Attempt ${attempt}/${maxAttempts})`);
-    const code = await exec(["yt-dlp", "-o", outputFile, videoUrl]);
+
+    const command = ["yt-dlp", "-o", outputFile, videoUrl, "--progress"];
+    const code = await exec(command);
 
     if (code === 0) return true;
 

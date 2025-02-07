@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     shellcheck \
     ruby \
     && gem install lolcat \
+    && pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
     && pip3 install --no-cache-dir --upgrade "git+https://github.com/openai/whisper.git@v20231117" \
     && pip install --no-cache-dir --upgrade yt-dlp \
     && rm -rf /var/lib/apt/lists/*

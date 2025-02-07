@@ -6,9 +6,12 @@ import { config } from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
 import { fetchVideoIDs } from "./scraper.ts";
 import { ensureDirExists, getDataPath } from "./utils.ts";
 import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
+import { filterVideoIDs } from "./utils.ts";
 
 const env = config();
-const CHANNEL_NAME = env.CHANNEL_NAME;
+const CHANNEL_NAME = env.CHANNEL_NAME || 'piratesoftware';
+const FILTER_CRITERIA = env.FILTER_CRITERIA;
+const SPECIFIC_VODS = env.SPECIFIC_VODS || '1667916365';
 
 async function cleanTempDirectory() {
   const tempDir = getDataPath("temp");
@@ -41,7 +44,19 @@ async function processVideos() {
     const videoIDs = await fetchVideoIDs(CHANNEL_NAME);
     console.log(`📹 Found ${videoIDs.length} videos to check`);
 
-    for (const videoID of videoIDs) {
+    // Apply filtering or specific VOD selection
+    const filteredVideoIDs = ['1667916365'];//filterVideoIDs(videoIDs, FILTER_CRITERIA, SPECIFIC_VODS);
+
+    if (SPECIFIC_VODS && SPECIFIC_VODS.length > 0) {
+      console.log(`🎯 Targeting specific VODs: ${SPECIFIC_VODS}`);
+    } else if (FILTER_CRITERIA?.trim()) {
+      console.log(`🔍 Applying filter criteria: ${FILTER_CRITERIA}`);
+    }
+
+    console.log(`📹 Processing ${filteredVideoIDs.length} videos`);
+
+
+    for (const videoID of filteredVideoIDs) {
       if (await getVideoById(db, videoID)) {
         console.log(`✅ Skipping already downloaded video: ${videoID}`);
         continue;
