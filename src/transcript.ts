@@ -73,7 +73,6 @@ async function generateTranscript(db: Database, video: Video) {
       // Add CUDA-specific arguments if available
       if (useCuda) {
         whisperCmd.push("--device", "cuda:0");
-        // whisperCmd.push("--fp16", "true");
       }
 
       // Run Whisper
