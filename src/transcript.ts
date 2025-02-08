@@ -8,6 +8,7 @@ import {config} from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
 
 const env = config();
 const USE_GPU = env.USE_GPU;
+const CONCURRENT_CHUNK_PROCESS = env.CONCURRENT_CHUNK_PROCESS;
 const CHUNK_DURATION = 1800; // 30 minutes in seconds
 const OVERLAP_DURATION = 30; // 30 seconds of overlap between chunks
 
@@ -50,7 +51,7 @@ async function withRetry<T>(
 
 async function processChunksInPairs(chunkFiles: string[], transcriptsDir: string, useCuda: boolean) {
   const transcriptions: WhisperOutput[] = new Array(chunkFiles.length);
-  const CONCURRENT_CHUNKS = 2;
+  const CONCURRENT_CHUNKS = CONCURRENT_CHUNK_PROCESS;
 
   // Process chunks in groups of CONCURRENT_CHUNKS
   for (let i = 0; i < chunkFiles.length; i += CONCURRENT_CHUNKS) {
@@ -180,6 +181,9 @@ async function splitAudioIntoChunks(audioFile: string, outputDir: string, chunkD
   console.log(`Chunk duration: ${chunkDuration}s, Overlap: ${overlap}s`);
 
   // Calculate effective chunk time with overlap
+  if (overlap >= chunkDuration) {
+    throw new Error("Overlap must be smaller than chunk duration.");
+  }
   const effectiveChunkDuration = chunkDuration - overlap;
   console.log(`Effective chunk duration: ${effectiveChunkDuration}s`);
 
@@ -289,10 +293,8 @@ function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number) {
 
   for (let i = 0; i < transcriptions.length; i++) {
     const currentChunk = transcriptions[i];
-    const nextChunk = transcriptions[i + 1];
-
     // Get segments for current chunk
-    let currentSegments = [...currentChunk.segments];
+    let currentSegments = currentChunk.segments ? [...currentChunk.segments] : [];
 
     if (i > 0) {
       // Find overlapping content with previous chunk
@@ -301,7 +303,7 @@ function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number) {
 
       // Filter out segments that are completely in the overlap region and duplicate previous content
       currentSegments = currentSegments.filter(segment => {
-        const isInOverlap = segment.start < overlap;
+        const isInOverlap = segment.start < overlap && segment.end > 0;
         if (!isInOverlap) return true;
 
         // Check if this segment's text is similar to already transcribed content
@@ -326,13 +328,13 @@ function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number) {
     // Update timeOffset for next chunk
     const lastSegment = currentSegments[currentSegments.length - 1];
     if (lastSegment) {
-      timeOffset = lastSegment.end;
+      timeOffset = lastSegment.end + overlap;
     }
   }
 
   // Generate combined text from final segments
   const combinedText = combinedSegments
-      .map(segment => segment.text.trim())
+      .map(segment => segment.text)
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
@@ -358,7 +360,7 @@ function isTextSimilar(text1: string, text2: string, threshold = 0.8): boolean {
       words2.includes(word)
   );
 
-  const similarity = commonWords.length / Math.max(words1.length, words2.length);
+  const similarity = commonWords.length / (words1.length + words2.length - commonWords.length);
   return similarity >= threshold;
 }
 
@@ -377,7 +379,7 @@ async function transcribeChunk(chunkFile: string, transcriptsDir: string, useCud
     const whisperCmd = [
       "whisper",
       chunkFile,
-      "--model", "large-v3",
+      "--model", "large-v2",
       "--output_format", "json",
       "--output_dir", transcriptsDir,
       "--beam_size", "5",
