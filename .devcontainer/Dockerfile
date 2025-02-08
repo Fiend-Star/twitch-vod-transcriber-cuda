@@ -22,10 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pip install --no-cache-dir --upgrade yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
-# Create user
+# Create user and set up directories
 RUN useradd -m -s /usr/bin/fish deno
 USER deno
-WORKDIR /home/deno
+WORKDIR /workspace
 
 # Ensure Fish config directory exists
 RUN mkdir -p /home/deno/.config/fish
@@ -36,6 +36,7 @@ RUN curl -fsSL https://deno.land/x/install/install.sh | sh
 # Update Fish config
 RUN echo '# Environment setup' > /home/deno/.config/fish/config.fish && \
     echo 'set -gx DENO_INSTALL "$HOME/.deno"' >> /home/deno/.config/fish/config.fish && \
+    echo 'fish_add_path $DENO_INSTALL/bin' >> /home/deno/.config/fish/config.fish && \
     echo 'set -gx PATH $DENO_INSTALL/bin $PATH' >> /home/deno/.config/fish/config.fish && \
     echo '' >> /home/deno/.config/fish/config.fish && \
     echo 'if status is-interactive' >> /home/deno/.config/fish/config.fish && \
