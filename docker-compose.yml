@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   twitch-downloader:
     build:
@@ -17,5 +15,9 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/workspace/data
+#      - .:/workspace
+#      - ./data:/workspace/data
+      - ./videos.json:/app/videos.json
+      - ./transcripts.json:/app/transcripts.json
+      - ./vods:/app/vods
     command: ["deno", "task", "start"]

@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create user and set up directories
 RUN useradd -m -s /usr/bin/fish deno
 USER deno
-WORKDIR /workspace
+WORKDIR /home/deno
 
 # Ensure Fish config directory exists
 RUN mkdir -p /home/deno/.config/fish
