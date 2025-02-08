@@ -50,34 +50,57 @@ async function withRetry<T>(
   throw new Error(`Failed after ${config.maxAttempts} attempts`);
 }
 
-async function processChunksInPairs(chunkFiles: string[], transcriptsDir: string, useCuda: boolean) {
-  const transcriptions: WhisperOutput[] = new Array(chunkFiles.length);
-  const CONCURRENT_CHUNKS = CONCURRENT_CHUNK_PROCESS;
+// Helper function to ensure consistent chunk number formatting
+function formatChunkNumber(chunkIndex: number, totalChunks: number): string {
+  // Determine the padding width based on total number of chunks
+  const paddingWidth = totalChunks.toString().length;
+  return (chunkIndex + 1).toString().padStart(paddingWidth, '0');
+}
 
-  // Process chunks in groups of CONCURRENT_CHUNKS
+async function processChunksInPairs(
+    chunkFiles: Array<{ path: string; totalChunks: number }>,
+    transcriptsDir: string,
+    useCuda: boolean,
+    videoId: string
+) {
+  const transcriptions: WhisperOutput[] = new Array(chunkFiles.length);
+  const CONCURRENT_CHUNKS = Math.max(1, CONCURRENT_CHUNK_PROCESS);
+
   for (let i = 0; i < chunkFiles.length; i += CONCURRENT_CHUNKS) {
     const chunkPromises = [];
+    const batchEnd = Math.min(i + CONCURRENT_CHUNKS, chunkFiles.length);
 
-    // Create promises for current batch of chunks
     for (let j = 0; j < CONCURRENT_CHUNKS && i + j < chunkFiles.length; j++) {
       const chunkIndex = i + j;
-      console.log(`Starting chunk ${chunkIndex + 1}/${chunkFiles.length}`);
+      const { path: chunkFile, totalChunks } = chunkFiles[chunkIndex];
+      const formattedChunkNum = formatChunkNumber(chunkIndex, chunkFiles.length);
+
+      console.log(`Starting chunk ${formattedChunkNum}/${chunkFiles.length}`);
 
       const promise = withRetry(
-          () => transcribeChunk(chunkFiles[chunkIndex], transcriptsDir, useCuda, chunkIndex),
-          `Chunk ${chunkIndex} transcription`,
+          () => transcribeChunk(
+              chunkFile,
+              transcriptsDir,
+              useCuda,
+              chunkIndex,
+              videoId,
+              totalChunks
+          ),
+          `Chunk ${formattedChunkNum} transcription`,
           {...RETRY_CONFIG, maxAttempts: 2}
       ).then(result => {
         transcriptions[chunkIndex] = result;
-        console.log(`✓ Completed chunk ${chunkIndex + 1}/${chunkFiles.length}`);
+        console.log(`✓ Completed chunk ${formattedChunkNum}/${chunkFiles.length}`);
       });
 
       chunkPromises.push(promise);
     }
 
-    // Wait for current batch to complete before starting next batch
+    const batchStart = formatChunkNumber(i, chunkFiles.length);
+    const batchEndFormatted = formatChunkNumber(batchEnd - 1, chunkFiles.length);
+
     await Promise.all(chunkPromises);
-    console.log(`\nCompleted chunks ${i + 1}-${Math.min(i + CONCURRENT_CHUNKS, chunkFiles.length)} of ${chunkFiles.length}\n`);
+    console.log(`\nCompleted chunks ${batchStart}-${batchEndFormatted} of ${chunkFiles.length}\n`);
   }
 
   return transcriptions;
@@ -88,7 +111,8 @@ async function generateTranscript(db: Database, video: Video) {
 
   const audioDir = getDataPath("audio");
   const transcriptsDir = getDataPath("transcripts");
-  const audioFile = join(audioDir, `audio_${video.id}.wav`);
+  const audioFile = join(audioDir, `${video.id}_audio.wav`);
+
 
   await prepareDirectories(audioDir, transcriptsDir);
   const useCuda = await checkCuda();
@@ -101,13 +125,26 @@ async function generateTranscript(db: Database, video: Video) {
           audioFile,
           audioDir,
           CHUNK_DURATION,
-          OVERLAP_DURATION
+          OVERLAP_DURATION,
+          video.id
       );
 
-      console.log(`\nStarting transcription of ${chunkFiles.length} chunks in pairs...`);
-      const transcriptions = await processChunksInPairs(chunkFiles, transcriptsDir, useCuda);
+      console.log(`\nStarting transcription of ${chunkFiles.length} chunks...`);
 
-      const mergedTranscript = mergeTranscriptions(transcriptions, OVERLAP_DURATION);
+      // Update processChunksInPairs call to include video ID
+      const transcriptions = await processChunksInPairs(
+          chunkFiles,
+          transcriptsDir,
+          useCuda,
+          video.id
+      );
+
+      const mergedTranscript = await mergeTranscriptions(
+          transcriptions,
+          OVERLAP_DURATION,
+          transcriptsDir,
+          video.id
+      );
 
       await insertTranscript(db, {
         id: crypto.randomUUID(),
@@ -122,7 +159,8 @@ async function generateTranscript(db: Database, video: Video) {
   } catch (error) {
     await handleError(db, video.id, error);
   } finally {
-    await cleanupFiles(audioDir);
+    // Update cleanup to include video ID pattern
+    await cleanupFiles(audioDir, video.id);
   }
 }
 
@@ -175,36 +213,27 @@ async function convertVideoToAudio(videoPath: string, audioFile: string) {
   }
 }
 
-async function splitAudioIntoChunks(audioFile: string, outputDir: string, chunkDuration: number, overlap: number) {
+async function splitAudioIntoChunks(audioFile: string, outputDir: string, chunkDuration: number, overlap: number, videoId: string) {
   console.log("=== Starting Audio Chunking Process ===");
   console.log(`Input file: ${audioFile}`);
   console.log(`Output directory: ${outputDir}`);
   console.log(`Chunk duration: ${chunkDuration}s, Overlap: ${overlap}s`);
+  console.log(`Video ID: ${videoId}`);
 
-  // Calculate effective chunk time with overlap
-  if (overlap >= chunkDuration) {
-    throw new Error("Overlap must be smaller than chunk duration.");
-  }
-  const effectiveChunkDuration = chunkDuration - overlap;
-  console.log(`Effective chunk duration: ${effectiveChunkDuration}s`);
-
-  // Get total duration of audio
   const {duration} = await getAudioDuration(audioFile);
   console.log(`Total audio duration: ${duration}s`);
 
-  const chunkFiles = [];
+  const effectiveChunkDuration = chunkDuration - overlap;
   const expectedChunks = Math.ceil(duration / effectiveChunkDuration);
-  console.log(`Expected number of chunks: ${expectedChunks}`);
+  const chunkFiles = [];
 
-  // Split into overlapping chunks
   for (let start = 0, index = 0; start < duration; start += effectiveChunkDuration, index++) {
-    const chunkFile = join(outputDir, `chunk_${index}.wav`);
+    const chunkFile = join(outputDir, `chunk_${videoId}_${formatChunkNumber(index, expectedChunks)}.wav`);
     console.log(`\n--- Processing Chunk ${index + 1}/${expectedChunks} ---`);
     console.log(`Output file: ${chunkFile}`);
-    console.log(`Start time: ${start}s, Duration: ${chunkDuration}s`);
 
     try {
-      const ffmpegCmd = [
+      await execWithLogs([
         "ffmpeg",
         "-i", audioFile,
         "-ss", `${start}`,
@@ -213,23 +242,20 @@ async function splitAudioIntoChunks(audioFile: string, outputDir: string, chunkD
         "-y",
         chunkFile,
         "-loglevel", "error"
-      ];
-      console.log(`Executing: ${ffmpegCmd.join(' ')}`);
+      ]);
 
-      await execWithLogs(ffmpegCmd);
-
-      // Verify chunk was created
       const chunkStats = await Deno.stat(chunkFile);
       console.log(`✓ Chunk ${index} created successfully: ${chunkStats.size} bytes`);
-      chunkFiles.push(chunkFile);
+      chunkFiles.push({
+        path: chunkFile,
+        totalChunks: expectedChunks  // Include total chunks info with each file
+      });
     } catch (error) {
       console.error(`❌ Error creating chunk ${index}:`, error);
       throw error;
     }
   }
 
-  console.log(`\n=== Chunking Complete ===`);
-  console.log(`Successfully created ${chunkFiles.length} chunks`);
   return chunkFiles;
 }
 
@@ -288,7 +314,7 @@ async function getAudioDuration(audioFile: string): Promise<{ duration: number }
 }
 
 // Updated merge function to handle overlaps
-function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number) {
+async function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number, transcriptsDir: string, videoId: string) {
   let combinedSegments: any[] = [];
   let timeOffset = 0;
 
@@ -340,7 +366,22 @@ function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number) {
       .replace(/\s+/g, " ")
       .trim();
 
-  return {text: combinedText, segments: combinedSegments};
+  const mergedOutput = {
+    text: combinedText,
+    segments: combinedSegments,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      num_segments: combinedSegments.length,
+      total_duration: combinedSegments[combinedSegments.length - 1]?.end || 0,
+      video_id: videoId
+    }
+  };
+
+  const mergedJsonPath = join(transcriptsDir, `${videoId}_merged.json`);
+  await Deno.writeTextFile(mergedJsonPath, JSON.stringify(mergedOutput, null, 2));
+  console.log(`✓ Merged transcript JSON saved to: ${mergedJsonPath}`);
+
+  return mergedOutput;
 }
 
 // Helper function to check text similarity
@@ -366,16 +407,21 @@ function isTextSimilar(text1: string, text2: string, threshold = 0.8): boolean {
 }
 
 
-async function transcribeChunk(chunkFile: string, transcriptsDir: string, useCuda: boolean, index: number) {
-  console.log(`\n=== Starting Transcription of Chunk ${index} ===`);
-  const chunkJsonFile = join(transcriptsDir, `chunk_${index}.json`);
+async function transcribeChunk(
+    chunkFile: string,
+    transcriptsDir: string,
+    useCuda: boolean,
+    index: number,
+    videoId: string,
+    totalChunks: number
+) {
+  const chunkJsonFile = join(transcriptsDir, `chunk_${videoId}_${formatChunkNumber(index, totalChunks)}.json`);
 
   console.log("Configuration:");
   console.log(`- Input file: ${chunkFile}`);
   console.log(`- Output JSON: ${chunkJsonFile}`);
   console.log(`- Using CUDA: ${useCuda}`);
 
-  // Retry the Whisper command execution
   await withRetry(async () => {
     const whisperCmd = [
       "whisper",
@@ -390,32 +436,12 @@ async function transcribeChunk(chunkFile: string, transcriptsDir: string, useCud
       whisperCmd.push("--device", "cuda:0");
     }
 
-    console.log("Executing Whisper command:");
-    console.log(whisperCmd.join(' '));
-
     await execWithLogs(whisperCmd);
-    console.log(`✓ Whisper processing completed for chunk ${index}`);
   }, `Whisper execution for chunk ${index}`);
 
-  // Verify the output exists
-  try {
-    const jsonStats = await Deno.stat(chunkJsonFile);
-    console.log(`✓ Transcript JSON created: ${jsonStats.size} bytes`);
-  } catch (error) {
-    console.error(`❌ Failed to find transcript JSON for chunk ${index}:`, error);
-    throw error;
-  }
-
-  // Retry the file reading and parsing
   return await withRetry(async () => {
-    console.log(`Reading and parsing JSON for chunk ${index}`);
     const rawData = await readJsonFile(chunkJsonFile);
-    console.log(`✓ Successfully parsed JSON for chunk ${index}`);
-
-    const parsedOutput = WhisperOutput.parse(rawData);
-    console.log(`=== Completed Transcription of Chunk ${index} ===\n`);
-
-    return parsedOutput;
+    return WhisperOutput.parse(rawData);
   }, `Parse output for chunk ${index}`);
 }
 
@@ -437,10 +463,26 @@ async function handleError(db: Database, videoId: string, error: Error) {
 }
 
 
-async function cleanupFiles(directory: string) {
+async function cleanupFiles(directory: string, videoId: string) {
+  const transcriptsDir = getDataPath("transcripts");
+
   for await (const entry of Deno.readDir(directory)) {
-    if (entry.isFile && (entry.name.startsWith("audio_") || entry.name.startsWith("chunk_"))) {
+    if (entry.isFile && (
+        entry.name.startsWith(`audio_${videoId}`) ||
+        entry.name.startsWith(`chunk_${videoId}_`)
+    )) {
       await Deno.remove(join(directory, entry.name)).catch(() =>
+          console.warn(`Could not remove file: ${entry.name}`)
+      );
+    }
+  }
+
+  // Keep the merged JSON file, but clean up individual chunk JSON files
+  for await (const entry of Deno.readDir(transcriptsDir)) {
+    if (entry.isFile &&
+        entry.name.startsWith(`chunk_${videoId}_`) &&
+        entry.name.endsWith('.json')) {
+      await Deno.remove(join(transcriptsDir, entry.name)).catch(() =>
           console.warn(`Could not remove file: ${entry.name}`)
       );
     }
