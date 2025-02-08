@@ -38,7 +38,7 @@ export async function readJsonFile<T>(file: string): Promise<T | []> {
     }
 }
 
-export async function exec(command: string[]): Promise<number> {
+export async function execWithLogs(command: string[]): Promise<number> {
     const cmd = new Deno.Command(command[0], {
         args: command.slice(1),
         stdout: "piped",
@@ -62,6 +62,16 @@ export async function exec(command: string[]): Promise<number> {
     ]);
 
     return (await process.status).code;
+}
+
+export async function execWithOutput(command: string[]): Promise<string> {
+    const cmd = new Deno.Command(command[0], {
+        args: command.slice(1),
+        stdout: "piped",
+        stderr: "piped"
+    });
+    const { stdout } = await cmd.output();
+    return new TextDecoder().decode(stdout).trim();
 }
 
 /**

@@ -1,6 +1,6 @@
 import { Database } from "https://deno.land/x/sqlite3@0.12.0/mod.ts";
 import { saveVideoMetadata } from "./videoManager.ts";
-import { exec,  } from "./utils.ts";
+import { execWithLogs,  } from "./utils.ts";
 import { Video } from "./types.ts";
 import { getDataPath, getTempFilePath } from "./utils.ts";
 import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
@@ -26,7 +26,7 @@ async function attemptDownload(outputFile: string, videoUrl: string, attempt = 1
         "--progress"
     ];
 
-    const code = await exec(command);
+    const code = await execWithLogs(command);
     if (code === 0) return true;
 
     if (attempt < maxAttempts) {
