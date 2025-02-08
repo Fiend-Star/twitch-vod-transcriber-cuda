@@ -1,6 +1,6 @@
 import { downloadTwitchVideo } from "./download.ts";
 import { generateTranscript } from "./transcript.ts";
-import { initDb } from "./db/index.ts";
+import {getTranscriptByVideoId, initDb} from "./db/index.ts";
 import { getVideoById, deleteVideoById } from "./db/helpers.ts";
 import { config } from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
 import { fetchVideoIDs } from "./scraper.ts";
@@ -56,14 +56,28 @@ async function processVideos() {
 
     console.log(`📹 Processing ${filteredVideoIDs.length} videos`);
 
+    // First pass: Process videos that exist but need transcription
+    for (const videoID of filteredVideoIDs) {
+      const video = await getVideoById(db, videoID);
+      if (video && !await getTranscriptByVideoId(db, videoID)) {
+        console.log(`🎙️ Generating transcript for existing video: ${videoID}`);
+        try {
+          await generateTranscript(db, video);
+        } catch (error) {
+          console.error(`❌ Error generating transcript for ${videoID}:`, error);
+          await deleteVideoById(db, videoID);
+        }
+      }
+    }
 
+    // Second pass: Download and process new videos
     for (const videoID of filteredVideoIDs) {
       if (await getVideoById(db, videoID)) {
-        console.log(`✅ Skipping already downloaded video: ${videoID}`);
+        console.log(`✅ Video already processed: ${videoID}`);
         continue;
       }
 
-      console.log(`🚀 Processing video ID: ${videoID}`);
+      console.log(`🚀 Processing new video with ID: ${videoID}`);
       const videoUrl = `https://www.twitch.tv/videos/${videoID}`;
 
       try {

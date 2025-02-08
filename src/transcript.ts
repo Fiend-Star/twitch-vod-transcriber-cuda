@@ -16,150 +16,204 @@ async function generateTranscript(db: Database, video: Video) {
   const audioDir = getDataPath("audio");
   const transcriptsDir = getDataPath("transcripts");
   const audioFile = join(audioDir, `audio_${video.id}.wav`);
-  const jsonFile = join(transcriptsDir, `transcript_${video.id}.json`);
 
-  const maxAttempts = 3;
-  const retryDelay = 5_000;
+  await prepareDirectories(audioDir, transcriptsDir);
 
-  // Check if directories exist, create if they don't
+  const useCuda = await checkCuda();
+
   try {
-    await Deno.mkdir(audioDir, { recursive: true });
-    await Deno.mkdir(transcriptsDir, { recursive: true });
+    await convertVideoToAudio(video.file_path, audioFile);
+    const CHUNK_DURATION = 1800; // 30 minutes in seconds
+    const OVERLAP_DURATION = 20; // 10 seconds of overlap between chunks
+
+    // Split audio into 30-minute chunks with 10 seconds overlap
+    const chunkFiles = await splitAudioIntoChunks(audioFile, audioDir, CHUNK_DURATION, OVERLAP_DURATION);
+
+    const transcriptions = await Promise.all(
+        chunkFiles.map((chunkFile, index) =>
+            transcribeChunk(chunkFile, transcriptsDir, useCuda, index)
+        )
+    );
+
+    // Merge transcriptions while handling overlaps
+    const mergedTranscript = mergeTranscriptions(transcriptions, OVERLAP_DURATION);
+
+    await insertTranscript(db, {
+      id: crypto.randomUUID(),
+      video_id: video.id,
+      content: mergedTranscript.text,
+      segments: JSON.stringify(mergedTranscript.segments),
+      created_at: new Date().toISOString(),
+    });
+
+    console.log(`✅ Transcript generated and saved for video: ${video.id}`);
   } catch (error) {
-    if (!(error instanceof Deno.errors.AlreadyExists)) {
-      throw error;
-    }
+    await handleError(db, video.id, error);
+  } finally {
+    await cleanupFiles(audioDir);
   }
+}
 
-  // Check CUDA availability
-  let useCuda = false;
+async function prepareDirectories(audioDir: string, transcriptsDir: string) {
+  await Promise.all([
+    Deno.mkdir(audioDir, { recursive: true }).catch(ignoreExistsError),
+    Deno.mkdir(transcriptsDir, { recursive: true }).catch(ignoreExistsError),
+  ]);
+}
+
+async function checkCuda(): Promise<boolean> {
   try {
-    // Only check for CUDA if USE_GPU isn't explicitly false
     if (USE_GPU !== "false") {
       await exec(["nvidia-smi"]);
       console.log("✅ CUDA GPU detected");
-      useCuda = true;
-    } else {
-      console.log("ℹ️ GPU usage disabled by configuration");
+      return true;
     }
-  } catch (error) {
+    console.log("ℹ️ GPU usage disabled by configuration");
+    return false;
+  } catch {
     console.warn("⚠️ No CUDA GPU detected, falling back to CPU");
+    return false;
+  }
+}
+
+async function convertVideoToAudio(videoPath: string, audioFile: string) {
+  console.log("Converting video to audio...");
+  await exec([
+    "ffmpeg",
+    "-i", videoPath,
+    "-vn",
+    "-acodec", "pcm_s16le",
+    "-ar", "16000",
+    "-ac", "1",
+    "-preset", "ultrafast",
+    "-threads", "4",
+    "-hide_banner",
+    "-loglevel", "error",
+    "-y",
+    audioFile,
+  ]);
+}
+
+async function splitAudioIntoChunks(audioFile: string, outputDir: string, chunkDuration: number, overlap: number) {
+  console.log("Splitting audio into overlapping chunks...");
+
+  // Calculate effective chunk time with overlap
+  const effectiveChunkDuration = chunkDuration - overlap;
+
+  // Get total duration of audio
+  const { duration } = await getAudioDuration(audioFile);
+  const chunkFiles = [];
+
+  // Split into overlapping chunks
+  for (let start = 0, index = 0; start < duration; start += effectiveChunkDuration, index++) {
+    const chunkFile = join(outputDir, `chunk_${index}.wav`);
+
+    await exec([
+      "ffmpeg",
+      "-i", audioFile,
+      "-ss", `${start}`,
+      "-t", `${chunkDuration}`,
+      "-acodec", "copy",
+      "-y",
+      chunkFile,
+      "-loglevel", "error"
+    ]);
+
+    chunkFiles.push(chunkFile);
   }
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      // Convert the video file to audio
-      console.log("Converting video to audio...");
-      await exec([
-        "ffmpeg",
-        "-i", video.file_path,
-        "-vn",
-        "-acodec", "pcm_s16le",
-        "-ar", "16000",
-        "-ac", "1",
-        "-y",  // Overwrite output file if it exists
-        audioFile
-      ]);
+  return chunkFiles;
+}
 
-      // Prepare Whisper command
-      const whisperCmd = [
-        "whisper",
-        audioFile,
-        "--model", "small",
-        "--output_format", "json",
-        "--output_dir", transcriptsDir
-      ];
+// Function to get total duration of audio file
+async function getAudioDuration(audioFile: string): Promise<{ duration: number }> {
+  const output = await exec([
+    "ffprobe",
+    "-v", "error",
+    "-show_entries", "format=duration",
+    "-of", "default=noprint_wrappers=1:nokey=1",
+    audioFile
+  ]);
+  return { duration: parseFloat(output.trim()) };
+}
 
-      // Add CUDA-specific arguments if available
-      if (useCuda) {
-        whisperCmd.push("--device", "cuda:0");
-      }
+// Updated merge function to handle overlaps
+function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number) {
+  let combinedText = "";
+  let combinedSegments: any[] = [];
+  let timeOffset = 0;
 
-      // Run Whisper
-      console.log("Running Whisper transcription...");
-      await exec(whisperCmd);
+  for (let i = 0; i < transcriptions.length; i++) {
+    const transcription = transcriptions[i];
 
-      // Check for the output file
-      const autoGeneratedFile = join(transcriptsDir, `audio_${video.id}.json`);
+    // If this isn't the first chunk, remove overlap
+    if (i > 0) {
+      transcription.segments = transcription.segments.filter(segment => segment.start >= overlap);
+    }
 
-      // Wait for the file to exist (with timeout)
-      const maxWaitTime = 10000; // 10 seconds
-      const startTime = Date.now();
-
-      while (!(await fileExists(autoGeneratedFile))) {
-        if (Date.now() - startTime > maxWaitTime) {
-          throw new Error("Timeout waiting for Whisper output file");
-        }
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      // Rename with error handling
-      try {
-        await Deno.rename(autoGeneratedFile, jsonFile);
-      } catch (error) {
-        if (error instanceof Deno.errors.NotFound) {
-          throw new Error(`Whisper output file not found: ${autoGeneratedFile}`);
-        }
-        throw error;
-      }
-
-      // Read and parse the transcript
-      const rawData = await readJsonFile(jsonFile);
-      const transcriptData = WhisperOutput.parse(rawData);
-
-      // Insert into database
-      await insertTranscript(db, {
-        id: crypto.randomUUID(),
-        video_id: video.id,
-        content: transcriptData.text,
-        segments: JSON.stringify(transcriptData.segments),
-        created_at: new Date().toISOString()
+    // Adjust timestamps and merge
+    for (const segment of transcription.segments) {
+      combinedSegments.push({
+        ...segment,
+        start: segment.start + timeOffset - (i > 0 ? overlap : 0),
+        end: segment.end + timeOffset - (i > 0 ? overlap : 0),
       });
+    }
 
-      console.log(`✅ Transcript generated and saved for video: ${video.id}`);
+    combinedText += transcription.text.trim() + " ";
+    timeOffset = combinedSegments[combinedSegments.length - 1]?.end || 0;
+  }
 
-      // Clean up audio file
-      try {
-        await Deno.remove(audioFile);
-      } catch (error) {
-        console.warn(`Warning: Could not remove temporary audio file: ${audioFile}`);
-      }
+  return { text: combinedText.trim(), segments: combinedSegments };
+}
 
-      return;
 
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed for video ${video.id}:`, error);
+async function transcribeChunk(chunkFile: string, transcriptsDir: string, useCuda: boolean, index: number) {
+  const chunkJsonFile = join(transcriptsDir, `chunk_${index}.json`);
+  const whisperCmd = [
+    "whisper",
+    chunkFile,
+    "--model", "large-v3",
+    "--output_format", "json",
+    "--output_dir", transcriptsDir,
+    "--beam_size", "5",
+  ];
 
-      if (error instanceof ZodError) {
-        console.error("❌ Fatal ZodError: Data structure mismatch. Deleting database entries and aborting.");
-        try {
-          await deleteTranscriptByVideoId(db, video.id);
-          console.log(`Deleted transcript entries for video ID: ${video.id}`);
-        } catch (dbError) {
-          console.error("Error deleting transcript entries:", dbError);
-        }
-        return;
-      }
+  if (useCuda) whisperCmd.push("--device", "cuda:0");
 
-      if (attempt < maxAttempts) {
-        console.log(`Retrying in ${retryDelay / 1000} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      } else {
-        console.error(`❌ Failed to generate transcript after ${maxAttempts} attempts for video ${video.id}.`);
-      }
+  console.log(`Transcribing chunk ${index}...`);
+  await exec(whisperCmd);
+
+  const rawData = await readJsonFile(chunkJsonFile);
+  return WhisperOutput.parse(rawData);
+}
+
+async function handleError(db: Database, videoId: string, error: Error) {
+  console.error(`Error for video ${videoId}:`, error);
+
+  if (error instanceof ZodError) {
+    console.error("❌ Fatal ZodError: Data structure mismatch. Cleaning up database.");
+    try {
+      await deleteTranscriptByVideoId(db, videoId);
+      console.log(`Deleted transcript entries for video ID: ${videoId}`);
+    } catch (dbError) {
+      console.error("Error deleting transcript entries:", dbError);
     }
   }
 }
 
-// Helper function to check if a file exists
-async function fileExists(filepath: string): Promise<boolean> {
-  try {
-    await Deno.stat(filepath);
-    return true;
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
-      return false;
+async function cleanupFiles(directory: string) {
+  for await (const entry of Deno.readDir(directory)) {
+    if (entry.isFile && (entry.name.startsWith("audio_") || entry.name.startsWith("chunk_"))) {
+      await Deno.remove(join(directory, entry.name)).catch(() =>
+          console.warn(`Could not remove file: ${entry.name}`)
+      );
     }
+  }
+}
+
+function ignoreExistsError(error: Error) {
+  if (!(error instanceof Deno.errors.AlreadyExists)) {
     throw error;
   }
 }

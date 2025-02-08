@@ -41,24 +41,27 @@ export async function readJsonFile<T>(file: string): Promise<T | []> {
 export async function exec(command: string[]): Promise<number> {
     const cmd = new Deno.Command(command[0], {
         args: command.slice(1),
+        stdout: "piped",
+        stderr: "piped"
     });
 
-    const { code, stdout, stderr } = await cmd.output();
+    const process = cmd.spawn();
+    const decoder = new TextDecoder();
 
-    if (stdout) {
-        const output = new TextDecoder().decode(stdout);
-        output.split('\n').forEach(line => {
-            if (line.includes('[download]')) {
-                console.log(line);
-            }
-        });
-    }
+    const streamLogs = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            console.log(decoder.decode(value));
+        }
+    };
 
-    if (stderr) {
-        console.error(new TextDecoder().decode(stderr));
-    }
+    await Promise.all([
+        streamLogs(process.stdout.getReader()),
+        streamLogs(process.stderr.getReader())
+    ]);
 
-    return code;
+    return (await process.status).code;
 }
 
 /**
