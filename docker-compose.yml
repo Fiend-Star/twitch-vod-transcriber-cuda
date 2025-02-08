@@ -1,5 +1,8 @@
 services:
   twitch-downloader:
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile

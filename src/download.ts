@@ -9,12 +9,21 @@ import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
 async function attemptDownload(outputFile: string, videoUrl: string, attempt = 1): Promise<boolean> {
     const maxAttempts = 3;
     const retryDelay = 5_000;
+    const fragments = 4;
 
     console.log(`📥 Downloading: ${videoUrl} (Attempt ${attempt}/${maxAttempts})`);
 
-    const command = ["yt-dlp", "-o", outputFile, videoUrl, "--progress"];
-    const code = await exec(command);
+    const command = [
+        "yt-dlp",
+        "-o", outputFile,
+        "--concurrent-fragments", fragments.toString(),
+        "--fragment-retries", "10",
+        "--buffer-size", "16K",
+        videoUrl,
+        "--progress"
+    ];
 
+    const code = await exec(command);
     if (code === 0) return true;
 
     if (attempt < maxAttempts) {
