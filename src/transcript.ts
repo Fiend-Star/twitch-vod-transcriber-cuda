@@ -9,6 +9,7 @@ import {config} from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
 const env = config();
 const USE_GPU = env.USE_GPU;
 const CONCURRENT_CHUNK_PROCESS = env.CONCURRENT_CHUNK_PROCESS;
+const WHISPER_MODEL=env.WHISPER_MODEL;
 const CHUNK_DURATION = 1800; // 30 minutes in seconds
 const OVERLAP_DURATION = 30; // 30 seconds of overlap between chunks
 
@@ -379,7 +380,7 @@ async function transcribeChunk(chunkFile: string, transcriptsDir: string, useCud
     const whisperCmd = [
       "whisper",
       chunkFile,
-      "--model", "large-v2",
+      "--model", WHISPER_MODEL,
       "--output_format", "json",
       "--output_dir", transcriptsDir,
       "--beam_size", "5",
