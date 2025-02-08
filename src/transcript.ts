@@ -5,6 +5,10 @@ import { insertTranscript, deleteTranscriptByVideoId } from "./db/helpers.ts";
 import { readJsonFile } from "./utils.ts";
 import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
 import { ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { config } from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
+
+const env = config();
+const USE_GPU = env.USE_GPU;
 
 async function generateTranscript(db: Database, video: Video) {
   console.log(`🎙️ Generating transcript for video: ${video.id}`);
@@ -30,9 +34,14 @@ async function generateTranscript(db: Database, video: Video) {
   // Check CUDA availability
   let useCuda = false;
   try {
-    await exec(["nvidia-smi"]);
-    console.log("✅ CUDA GPU detected");
-    useCuda = true;
+    // Only check for CUDA if USE_GPU isn't explicitly false
+    if (USE_GPU !== "false") {
+      await exec(["nvidia-smi"]);
+      console.log("✅ CUDA GPU detected");
+      useCuda = true;
+    } else {
+      console.log("ℹ️ GPU usage disabled by configuration");
+    }
   } catch (error) {
     console.warn("⚠️ No CUDA GPU detected, falling back to CPU");
   }

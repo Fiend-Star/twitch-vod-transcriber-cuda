@@ -9,9 +9,10 @@ import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
 import { filterVideoIDs } from "./utils.ts";
 
 const env = config();
-const CHANNEL_NAME = env.CHANNEL_NAME || 'piratesoftware';
+const CHANNEL_NAME = env.CHANNEL_NAME;
 const FILTER_CRITERIA = env.FILTER_CRITERIA;
-const SPECIFIC_VODS = env.SPECIFIC_VODS || '1667916365';
+const SPECIFIC_VODS = env.SPECIFIC_VODS;
+
 
 async function cleanTempDirectory() {
   const tempDir = getDataPath("temp");
@@ -45,7 +46,7 @@ async function processVideos() {
     console.log(`📹 Found ${videoIDs.length} videos to check`);
 
     // Apply filtering or specific VOD selection
-    const filteredVideoIDs = ['1667916365'];//filterVideoIDs(videoIDs, FILTER_CRITERIA, SPECIFIC_VODS);
+    const filteredVideoIDs = filterVideoIDs(videoIDs, FILTER_CRITERIA, SPECIFIC_VODS);
 
     if (SPECIFIC_VODS && SPECIFIC_VODS.length > 0) {
       console.log(`🎯 Targeting specific VODs: ${SPECIFIC_VODS}`);

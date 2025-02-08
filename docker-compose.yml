@@ -15,8 +15,8 @@ services:
     env_file:
       - .env
     volumes:
-#      - .:/workspace
-#      - ./data:/workspace/data
+      - .:/workspace
+      - ./data:/workspace/data
       - ./videos.json:/app/videos.json
       - ./transcripts.json:/app/transcripts.json
       - ./vods:/app/vods

@@ -61,65 +61,63 @@ export async function exec(command: string[]): Promise<number> {
     return code;
 }
 
+/**
+ * Filters an array of video IDs based on specified criteria or a list of specific VODs
+ * @param videoIDs - Array of video ID strings to filter
+ * @param criteria - Optional filtering criteria ('latest', 'first', 'even', 'odd')
+ * @param specificVODs - Optional specific VOD IDs to filter for
+ * @returns Filtered array of video IDs
+ */
 export function filterVideoIDs(
     videoIDs: string[],
-    criteria?: string | undefined,
-    specificVODs?: string[] | string | undefined
+    criteria?: string,
+    specificVODs?: string[] | string
 ): string[] {
-    // Handle specificVODs input
-    if (specificVODs) {
+    // Input validation
+    if (!Array.isArray(videoIDs)) {
+        console.error("❌ videoIDs must be an array");
+        return [];
+    }
+
+    if (videoIDs.length === 0) {
+        console.log("ℹ️ Empty video ID array provided");
+        return [];
+    }
+
+    // Handle specificVODs filter
+    if (specificVODs !== undefined) {
         console.log("🎯 Using specific VODs filter");
 
-        // Convert specificVODs to array if it's a string
+        // Convert specificVODs to array and clean input
         const vodList = Array.isArray(specificVODs)
             ? specificVODs
-            : specificVODs.split(',').map(id => id.trim());
+            : specificVODs.split(',').map(id => id.trim()).filter(Boolean);
 
-        // Filter out any invalid or non-existent VOD IDs
-        const filteredList = vodList.filter(id => {
-            const isValid = videoIDs.includes(id);
-            if (!isValid) {
-                console.log(`⚠️ VOD ID not found: ${id}`);
-            }
-            return isValid;
-        });
+        if (vodList.length === 0) {
+            console.log("⚠️ No valid VOD IDs provided in specificVODs");
+            return [];
+        }
 
-        console.log(`Found ${filteredList.length} out of ${vodList.length} requested VODs`);
-        return filteredList;
+        return vodList;
     }
 
-    // If no filter criteria and no specific VODs, apply no filtering
+    // Handle criteria-based filtering
     if (!criteria?.trim()) {
-        console.log("ℹ️ No filtering applied - processing all videos");
-        return videoIDs;
+        console.log("ℹ️ No filtering criteria - processing all videos");
+        return [...videoIDs]; // Return a copy to prevent mutations
     }
 
-    // Apply filter criteria if provided
     console.log(`🔍 Applying filter criteria: ${criteria}`);
 
-    switch (criteria.toLowerCase()) {
+    switch (criteria.toLowerCase().trim()) {
         case 'latest':
-            if (videoIDs.length === 0) return [];
-            return [videoIDs[0]]; // Only return the most recent video
+            return [videoIDs[0]];
 
         case 'first':
-            if (videoIDs.length === 0) return [];
-            return [videoIDs[videoIDs.length - 1]]; // Return the oldest video
-
-        case 'even':
-            return videoIDs.filter(id => {
-                const num = parseInt(id);
-                return !isNaN(num) && num % 2 === 0;
-            });
-
-        case 'odd':
-            return videoIDs.filter(id => {
-                const num = parseInt(id);
-                return !isNaN(num) && num % 2 !== 0;
-            });
+            return [videoIDs[videoIDs.length - 1]];
 
         default:
-            console.log("⚠️ Unknown filter criteria, processing all videos");
-            return videoIDs;
+            console.log(`⚠️ Unknown filter criteria: "${criteria}", processing all videos`);
+            return [...videoIDs];
     }
 }
