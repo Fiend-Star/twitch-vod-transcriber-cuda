@@ -22,7 +22,8 @@
         "dbaeumer.vscode-eslint",
         "skyapps.fish-vscode",
         "redhat.vscode-yaml",
-        "yzhang.markdown-all-in-one"
+        "yzhang.markdown-all-in-one",
+        "qwtel.sqlite-viewer"
       ]
     }
   },
