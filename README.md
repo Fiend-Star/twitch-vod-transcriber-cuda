@@ -46,7 +46,15 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
    Create a file named `.env` in the project root (next to this README.md). Add the following line, replacing `<your_channel_name>` with the Twitch channel name you want to download VODs from:
 
    ```
-   CHANNEL_NAME=<your_channel_name>
+   CHANNEL_NAME=<your_channel_name>   
+   #Filter criteria: latest or first
+   FILTER_CRITERIA=
+   # Comma separated VOD IDs to download specific videos (takes precedence over filtering)
+   SPECIFIC_VODS=
+   # Set to false if you want to use CPU
+   USE_GPU=true
+   CONCURRENT_CHUNK_PROCESS=1
+   WHISPER_MODEL=large-v2
    ```
    
    For example:
