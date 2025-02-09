@@ -1,18 +1,32 @@
 import { Database } from "https://deno.land/x/sqlite3@0.12.0/mod.ts";
 import { saveVideoMetadata } from "./videoManager.ts";
-import { exec,  } from "./utils.ts";
+import { execWithLogs,  } from "./utils.ts";
 import { Video } from "./types.ts";
 import { getDataPath, getTempFilePath } from "./utils.ts";
 import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
 
 
 async function attemptDownload(outputFile: string, videoUrl: string, attempt = 1): Promise<boolean> {
-    const maxAttempts = 3;
+    const maxAttempts = 10;
     const retryDelay = 5_000;
+    const fragments = 8;
 
     console.log(`📥 Downloading: ${videoUrl} (Attempt ${attempt}/${maxAttempts})`);
-    const code = await exec(["yt-dlp", "-o", outputFile, videoUrl]);
 
+    const command = [
+        "yt-dlp",
+        "-o", outputFile,
+        "--concurrent-fragments", "16",
+        "--buffer-size", "16M",
+        "--downloader", "aria2c",
+        "--downloader-args", "aria2c:'-x 32 -s 32 -k 2M --optimize-concurrent-downloads'",
+        "--no-part",  // Don't use .part files
+        "--no-mtime", // Don't set modification time
+        videoUrl,
+        "--progress"
+    ];
+
+    const code = await execWithLogs(command);
     if (code === 0) return true;
 
     if (attempt < maxAttempts) {

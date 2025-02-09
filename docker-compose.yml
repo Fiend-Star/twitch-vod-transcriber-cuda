@@ -1,13 +1,25 @@
-version: "3.8"
-
 services:
   twitch-downloader:
-    build: .
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
     container_name: twitch-vod-downloader
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     env_file:
       - .env
     volumes:
+      - .:/workspace
+      - ./data:/workspace/data
       - ./videos.json:/app/videos.json
       - ./transcripts.json:/app/transcripts.json
       - ./vods:/app/vods
