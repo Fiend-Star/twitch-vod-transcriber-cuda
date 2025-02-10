@@ -1,4 +1,3 @@
-// src/db/index.ts
 import { Database } from "https://deno.land/x/sqlite3@0.12.0/mod.ts";
 import { getDataPath } from "../utils.ts";
 import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
@@ -22,6 +21,18 @@ export function initDb() {
       video_id TEXT REFERENCES videos(id),
       content TEXT,
       segments TEXT,
+      created_at TEXT
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chapters (
+      id TEXT PRIMARY KEY,
+      video_id TEXT REFERENCES videos(id),
+      start_time INTEGER,
+      end_time INTEGER,
+      content TEXT,
+      summary TEXT,
       created_at TEXT
     )
   `);
