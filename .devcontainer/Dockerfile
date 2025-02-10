@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ruby \
     sudo \
     vim \    
+    ssh \
     && gem install lolcat \
     && pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
     && pip3 install --no-cache-dir --upgrade "git+https://github.com/openai/whisper.git@v20231117" \
