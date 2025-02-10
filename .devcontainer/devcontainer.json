@@ -26,5 +26,6 @@
       ]
     }
   },
-  "remoteUser": "deno"
+  "remoteUser": "deno",
+  "updateRemoteUserUID": true
 }
