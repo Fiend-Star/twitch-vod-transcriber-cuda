@@ -33,6 +33,7 @@ export function initDb() {
       end_time INTEGER,
       content TEXT,
       summary TEXT,
+      title TEXT,
       created_at TEXT
     )
   `);
