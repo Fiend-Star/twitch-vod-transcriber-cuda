@@ -64,7 +64,7 @@ async function processChunksInPairs(
     videoId: string
 ) {
   const transcriptions: WhisperOutput[] = new Array(chunkFiles.length);
-  const CONCURRENT_CHUNKS = Math.max(1, CONCURRENT_CHUNK_PROCESS);
+  const CONCURRENT_CHUNKS = Math.max(1, +CONCURRENT_CHUNK_PROCESS);
 
   for (let i = 0; i < chunkFiles.length; i += CONCURRENT_CHUNKS) {
     const chunkPromises = [];
@@ -157,7 +157,7 @@ async function generateTranscript(db: Database, video: Video) {
       console.log(`✅ Transcript generated and saved for video: ${video.id}`);
     }, "Full transcription process");
   } catch (error) {
-    await handleError(db, video.id, error);
+    await handleError(db, video.id, error as Error);
   } finally {
     // Update cleanup to include video ID pattern
     await cleanupFiles(audioDir, video.id);
@@ -315,7 +315,7 @@ async function getAudioDuration(audioFile: string): Promise<{ duration: number }
 
 // Updated merge function to handle overlaps
 async function mergeTranscriptions(transcriptions: WhisperOutput[], overlap: number, transcriptsDir: string, videoId: string) {
-  let combinedSegments: any[] = [];
+  const combinedSegments: any[] = [];
   let timeOffset = 0;
 
   for (let i = 0; i < transcriptions.length; i++) {

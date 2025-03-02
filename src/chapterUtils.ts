@@ -1,16 +1,9 @@
 import * as tf from 'https://esm.sh/@tensorflow/tfjs@latest';
 import * as use from 'https://esm.sh/@tensorflow-models/universal-sentence-encoder';
 
-// Types
-export interface RawChapter {
-  start_time: number;
-  end_time: number;
-  content: string;
-}
-
 // Initialize TensorFlow with error handling
 let modelInitialized = false;
-let useModel: any = null;
+let useModel: unknown = null;
 
 async function initializeModel() {
   if (modelInitialized) return;
