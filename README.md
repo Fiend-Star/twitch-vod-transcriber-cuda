@@ -80,7 +80,7 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
 
 5.1 **Running Beta YouTube summary generation**
 
-      ```bash
+   ```bash
    deno run --allow-read --allow-write --allow-net --allow-env --allow-ffi src/chapterProcessor.ts VIDEO_ID
    ```
    this script will generate a series of chapters based off the transcriptions generated earlier using the Whisper LLM defined in your .env file.
