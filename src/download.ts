@@ -9,7 +9,6 @@ import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
 async function attemptDownload(outputFile: string, videoUrl: string, attempt = 1): Promise<boolean> {
     const maxAttempts = 10;
     const retryDelay = 5_000;
-    const fragments = 8;
 
     console.log(`📥 Downloading: ${videoUrl} (Attempt ${attempt}/${maxAttempts})`);
 

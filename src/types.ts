@@ -31,3 +31,18 @@ export const WhisperOutput = z.object({
   
   export type VideoParams = Record<keyof Video, string>;
   export type TranscriptParams = Record<keyof Transcript, string>;
+
+  export interface Transcript {
+    content: string;
+  }
+  
+  export interface ProcessedChapter extends RawChapter {
+    summary: string;
+    title: string;
+  }
+
+  export interface RawChapter {
+    start_time: number;
+    end_time: number;
+    content: string;
+  }

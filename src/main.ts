@@ -1,6 +1,6 @@
 import { downloadTwitchVideo } from "./download.ts";
 import { generateTranscript } from "./transcript.ts";
-import {getTranscriptByVideoId, initDb, insertVideo} from "./db/index.ts";
+import { getTranscriptByVideoId, initDb } from "./db/index.ts";
 import { getVideoById, deleteVideoById } from "./db/helpers.ts";
 import { config } from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
 import { fetchVideoIDs } from "./scraper.ts";

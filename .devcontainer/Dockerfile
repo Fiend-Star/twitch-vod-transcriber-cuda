@@ -16,6 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sqlite3 \
     shellcheck \
     ruby \
+    sudo \
+    vim \    
+    ssh \
+    tree \
     ssh \
     && gem install lolcat \
     && pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
