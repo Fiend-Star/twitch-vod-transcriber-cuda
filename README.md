@@ -78,6 +78,14 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
    - `--allow-env`: Allows loading of environment variables
    - `--allow-ffi`: Allows Deno to use foreign function interface, which is required for sqlite
 
+5.1 **Running Beta YouTube summary generation**
+
+      ```bash
+   deno run --allow-read --allow-write --allow-net --allow-env --allow-ffi src/chapterProcessor.ts VIDEO_ID
+   ```
+   this script will generate a series of chapters based off the transcriptions generated earlier using the Whisper LLM defined in your .env file.
+
+
 ### Setup (Using Docker Directly - Alternative)
 
 If you don't want to use the VS Code Dev Container, you can run the script directly using Docker, provided you have Docker installed on your host machine.
