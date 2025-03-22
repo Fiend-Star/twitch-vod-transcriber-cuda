@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     shellcheck \
     ruby \
     ssh \
+    ca-certificates \
+    nodejs \
+    npm \
     && gem install lolcat \
     && pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
     && pip3 install --no-cache-dir --upgrade "git+https://github.com/openai/whisper.git@v20231117" \
@@ -24,7 +27,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create user and set up directories
-RUN useradd -m -s /usr/bin/fish deno
+RUN useradd -m -s /usr/bin/fish deno \
+    && mkdir -p /workspace \
+    && chown -R deno:deno /workspace
+
+# Add support for other users that may be set in devcontainer.json
+RUN mkdir -p /workspaces && chown -R deno:deno /workspaces
+
+# Set up fish for the deno user
 USER deno
 WORKDIR /home/deno
 
@@ -61,7 +71,13 @@ RUN echo '# Environment setup' > /home/deno/.config/fish/config.fish && \
 # Set Fish as the shell
 SHELL ["/usr/bin/fish", "-c"]
 
-# Verify installations
+# Verify installations (optional, but good to have)
 RUN $DENO_INSTALL/bin/deno --version && \
     python3 --version && \
     whisper --help
+
+# Ensure workspace directory exists and is owned by deno
+USER root
+RUN mkdir -p /workspace && chown -R deno:deno /workspace
+USER deno
+WORKDIR /workspace
