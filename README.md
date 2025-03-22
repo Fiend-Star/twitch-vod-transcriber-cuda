@@ -99,7 +99,7 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
    process-chapters <video_id>
    ```
 
-   This will analyze the transcript and generate chapter markers for easier navigation through the video content.
+   This will analyse the transcript and generate chapter markers for easier navigation through the video content.
 
 ### Setup (Using Docker Directly - Alternative)
 
@@ -107,7 +107,7 @@ If you don't want to use the VS Code Dev Container, you can run the script direc
 
 1. **Clone the Repository:**
    ```bash
-   git clone <repository_url>
+   git clone git@github.com:milesburton/twitch-vod-downloader.git
    cd twitch-vod-downloader
    ```
 
