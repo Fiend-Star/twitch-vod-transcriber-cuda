@@ -1,31 +1,70 @@
 {
-  "name": "Twitch VOD Downloader",
-  "build": {
-    "dockerfile": "Dockerfile"
+  "name": "TypeScript DevContainer",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+    "ghcr.io/devcontainers-contrib/features/deno:1": {},
+    "ghcr.io/prulloac/devcontainer-features/bun:1": { "version": "1.2.0" }
   },
-  "runArgs": ["--gpus", "all"],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
-  "workspaceFolder": "/workspace",
   "customizations": {
     "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "eamodio.gitlens",
+        "ms-vscode.vscode-typescript-tslint-plugin",
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "ms-vscode.vscode-node-debug2",
+        "humao.rest-client",
+        "redhat.vscode-yaml",
+        "mikestead.dotenv",
+        "streetsidesoftware.code-spell-checker",
+        "prisma.prisma",
+        "ms-python.black-formatter",
+        "ms-vscode.live-server",
+        "ms-vscode-remote.remote-ssh",
+        "mechatroner.rainbow-csv",
+        "bungcip.better-toml",
+        "charliermarsh.ruff",
+        "wayou.vscode-todo-highlight",
+        "formulahendry.auto-close-tag",
+        "mongodb.mongodb-vscode",
+        "ms-toolsai.jupyter",
+        "ms-vscode.sqltools",
+        "ms-vscode.vscode-sqlite",
+        "github.copilot",
+        "github.vscode-github-actions"
+      ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "fish",
-        "deno.path": "/home/deno/.deno/bin/deno"
-      },
-      "extensions": [
-        "denoland.vscode-deno",
-        "redhat.vscode-json",
-        "foxundermoon.shell-format",
-        "eamodio.gitlens",
-        "ms-azuretools.vscode-docker",
-        "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint",
-        "skyapps.fish-vscode",
-        "redhat.vscode-yaml",
-        "yzhang.markdown-all-in-one",
-        "qwtel.sqlite-viewer"
-      ]
+        "editor.formatOnSave": true,
+        "editor.tabSize": 2,
+        "files.trimTrailingWhitespace": true,
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
     }
   },
-  "remoteUser": "deno"
+  "remoteUser": "vscode",
+  "mounts": [
+    {
+      "source": "${localEnv:HOME}/.ssh",
+      "target": "/home/vscode/.ssh",
+      "type": "bind",
+      "options": ["readonly"]
+    },
+    {
+      "source": "fish_history",
+      "target": "/home/vscode/.local/share/fish",
+      "type": "volume"
+    },
+    {
+      "source": "${localWorkspaceFolder}/shared",
+      "target": "/workspace/shared",
+      "type": "bind"
+    }
+  ],
+  "containerEnv": {
+    "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=no"
+  }
 }
