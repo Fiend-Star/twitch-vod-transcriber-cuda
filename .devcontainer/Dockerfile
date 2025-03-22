@@ -47,13 +47,16 @@ RUN echo '# Environment setup' > /home/deno/.config/fish/config.fish && \
     echo '  echo "-------------------------------------------------" | lolcat' >> /home/deno/.config/fish/config.fish && \
     echo '  echo "Available aliases:" | lolcat' >> /home/deno/.config/fish/config.fish && \
     echo '  echo "  - download: Runs the VOD downloader script." | lolcat' >> /home/deno/.config/fish/config.fish && \
+    echo '  echo "  - process-chapters: Processes chapters for a specific VOD." | lolcat' >> /home/deno/.config/fish/config.fish && \
     echo '  echo "-------------------------------------------------" | lolcat' >> /home/deno/.config/fish/config.fish && \
     echo '  echo ""' >> /home/deno/.config/fish/config.fish && \
     echo '  echo "To run the downloader, type: download" | lolcat' >> /home/deno/.config/fish/config.fish && \
+    echo '  echo "To process chapters, type: process-chapters <video_id>" | lolcat' >> /home/deno/.config/fish/config.fish && \
     echo '  echo ""' >> /home/deno/.config/fish/config.fish && \
     echo 'end' >> /home/deno/.config/fish/config.fish && \
     echo '' >> /home/deno/.config/fish/config.fish && \
-    echo 'alias download="$DENO_INSTALL/bin/deno run --allow-net --allow-run --allow-read --allow-write --allow-env --allow-ffi src/main.ts"' >> /home/deno/.config/fish/config.fish
+    echo 'alias download="$DENO_INSTALL/bin/deno run --allow-net --allow-run --allow-read --allow-write --allow-env --allow-ffi src/main.ts"' >> /home/deno/.config/fish/config.fish && \
+    echo 'alias process-chapters="$DENO_INSTALL/bin/deno run --allow-read --allow-write --allow-net --allow-env --allow-ffi src/chapterProcessor.ts"' >> /home/deno/.config/fish/config.fish
 
 # Set Fish as the shell
 SHELL ["/usr/bin/fish", "-c"]
