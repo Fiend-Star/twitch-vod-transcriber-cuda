@@ -16,6 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sqlite3 \
     shellcheck \
     ruby \
+    sudo \
+    vim \    
+    ssh \
+    tree \
     ssh \
     ca-certificates \
     nodejs \
