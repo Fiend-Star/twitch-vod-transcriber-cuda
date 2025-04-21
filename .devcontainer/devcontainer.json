@@ -5,6 +5,14 @@
     "context": ".."
   },
   "customizations": {
+    "jetbrains": {
+      "settings": {
+        "com.intellij.database:app:DatabaseSettings.enable-local-filter-by-default": false,
+        "com.intellij:app:EditorSettings.soft_wrap_file_masks": "*.md; *.txt; *.rst; *.adoc; *.java; *.*; *",
+        "org.jetbrains.plugins.github:app:GithubSettings.clone_git_using_ssh": true,
+        "com.intellij:app:HttpConfigurable.use_proxy_pac": true
+      }
+    },
     "vscode": {
       "extensions": [
         "dbaeumer.vscode-eslint",
