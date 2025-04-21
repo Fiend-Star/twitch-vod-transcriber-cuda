@@ -20,7 +20,8 @@ export const WhisperOutput = z.object({
     id: z.number(),
     start: z.number(),
     end: z.number(),
-    text: z.string()
+    text: z.string(),
+    speaker: z.string().optional()
   }))
 });
   

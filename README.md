@@ -17,6 +17,31 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
 - 🐳 Can be built and run directly using docker on host
 - 🚀 Uses Deno for a modern runtime
 
+
+## 🎙️ Multi-Speaker Annotation
+
+This project includes speaker diarization using PyAnnote to identify different speakers in the transcript. This feature:
+
+- Automatically identifies and labels different speakers in the audio
+- Integrates speaker labels into the transcript (e.g., "[SPEAKER_1]: Hello!")
+- Enhances readability by distinguishing between different people speaking
+
+### Requirements for Speaker Diarization
+
+To use the speaker diarization feature, you need:
+
+1. A HuggingFace account and authentication token
+2. Add your token to the `HUGGINGFACE_TOKEN` environment variable in your `.env` file
+
+You can get a HuggingFace token by:
+1. Creating an account at [huggingface.co](https://huggingface.co)
+2. Going to your profile settings → Access Tokens
+3. Creating a new token with read permissions
+
+Without a valid token, the system will fall back to standard transcription without speaker identification.
+
+**Note:** Speaker identification is not 100% accurate and may occasionally misattribute speech, especially in recordings with background noise, overlapping speech, or similar-sounding speakers.
+
 ## 🚀 Getting Started
 
 ### Prerequisites

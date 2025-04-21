@@ -166,6 +166,7 @@ async function main() {
   await ensureDirExists(getDataPath("db"));
   await ensureDirExists(getDataPath("videos"));
   await ensureDirExists(getDataPath("temp"));
+  await ensureDirExists(getDataPath("diarization"));
 
   await cleanTempDirectory();
   await processVideos();

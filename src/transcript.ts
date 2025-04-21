@@ -5,6 +5,7 @@ import {deleteTranscriptByVideoId, insertTranscript} from "./db/helpers.ts";
 import {join} from "https://deno.land/std@0.208.0/path/mod.ts";
 import {ZodError} from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import {config} from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
+import { diarizeAudio, integrateTranscriptWithSpeakers } from "./diarization.ts";
 
 const env = config();
 const USE_GPU = env.USE_GPU;
@@ -146,16 +147,22 @@ async function generateTranscript(db: Database, video: Video) {
           video.id
       );
 
+      console.log("🎙️ Identifying speakers in audio...");
+      const speakerSegments = await diarizeAudio(audioFile, video.id);
+
+      const transcriptWithSpeakers = integrateTranscriptWithSpeakers(mergedTranscript, speakerSegments);
+
+
       await insertTranscript(db, {
         id: crypto.randomUUID(),
         video_id: video.id,
-        content: mergedTranscript.text,
+        content: transcriptWithSpeakers.text,
         segments: JSON.stringify(mergedTranscript.segments),
         created_at: new Date().toISOString(),
       });
 
-      console.log(`✅ Transcript generated and saved for video: ${video.id}`);
-    }, "Full transcription process");
+      console.log(`✅ Transcript with speaker identification generated for video: ${video.id}`);
+      }, "Full transcription process");
   } catch (error) {
     await handleError(db, video.id, error as Error);
   } finally {
