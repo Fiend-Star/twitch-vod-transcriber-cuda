@@ -9,6 +9,7 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
 - ⬇️ Downloads Twitch VODs
 - 🎵 Extracts audio from downloaded videos
 - 📝 Generates transcripts using OpenAI's Whisper
+- 📑 Processes video chapters for easier navigation
 - 🗄️ Stores video metadata and transcripts in an SQLite database
 - 🔄 Retries failed downloads and transcript generation
 - 🧹 Cleans up temporary files
@@ -47,8 +48,16 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
 
    ```
    CHANNEL_NAME=<your_channel_name>
+   #Filter criteria: latest or first
+   FILTER_CRITERIA=
+   # Comma separated VOD IDs to download specific videos (takes precedence over filtering)
+   SPECIFIC_VODS=
+   # Set to false if you want to use CPU
+   USE_GPU=true
+   CONCURRENT_CHUNK_PROCESS=1
+   WHISPER_MODEL=large-v2
    ```
-   
+
    For example:
    ```
    CHANNEL_NAME=twitch
@@ -62,6 +71,12 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
    deno run --allow-net --allow-run --allow-read --allow-write --allow-env --allow-ffi src/main.ts
    ```
 
+   Or use the provided alias:
+
+   ```bash
+   download
+   ```
+
    Permissions explanation:
    - `--allow-net`: Allows network access (to download videos and interact with Twitch's API)
    - `--allow-run`: Allows running subprocesses (like `yt-dlp`, `ffmpeg`, and `whisper`)
@@ -70,13 +85,29 @@ This project downloads Twitch VODs (Video On Demand), converts them to audio, an
    - `--allow-env`: Allows loading of environment variables
    - `--allow-ffi`: Allows Deno to use foreign function interface, which is required for sqlite
 
+6. **Process Chapters for a VOD:**
+
+   To process chapters for a specific VOD, run:
+
+   ```bash
+   deno run --allow-read --allow-write --allow-net --allow-env --allow-ffi src/chapterProcessor.ts <video_id>
+   ```
+
+   Or use the provided alias:
+
+   ```bash
+   process-chapters <video_id>
+   ```
+
+   This will analyse the transcript and generate chapter markers for easier navigation through the video content.
+
 ### Setup (Using Docker Directly - Alternative)
 
 If you don't want to use the VS Code Dev Container, you can run the script directly using Docker, provided you have Docker installed on your host machine.
 
 1. **Clone the Repository:**
    ```bash
-   git clone <repository_url>
+   git clone git@github.com:milesburton/twitch-vod-downloader.git
    cd twitch-vod-downloader
    ```
 
@@ -129,6 +160,7 @@ If you don't want to use the VS Code Dev Container, you can run the script direc
 │   ├── main.ts          # Main application logic
 │   ├── scraper.ts       # Fetches video IDs from Twitch
 │   ├── transcript.ts    # Generates transcripts from audio
+│   ├── chapterProcessor.ts # Processes video chapters
 │   ├── types.ts         # Type definitions
 │   └── utils.ts         # Utility functions
 ├── .devcontainer        # Configuration of devcontainer
@@ -148,6 +180,8 @@ This project saves data in several locations within the `data` directory:
 - **Audio (`data/audio`):** Extracted audio files are stored as `.wav` files. Filenames follow the pattern `audio_<video_id>.wav`.
 
 - **Transcripts (`data/transcripts`):** Generated transcripts are stored as `.json` files in a structured JSON format. Filenames follow the pattern `transcript_<video_id>.json`.
+
+- **Chapters (`data/transcripts`):** Generated chapter information is stored alongside the transcripts as `.chapters.json` files. Filenames follow the pattern `transcript_<video_id>.chapters.json`.
 
 - **Database (`data/db/sqlite.db`):** An SQLite database with two tables:
   - `videos`: Stores metadata about downloaded videos
