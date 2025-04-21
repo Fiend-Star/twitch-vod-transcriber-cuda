@@ -7,6 +7,7 @@
   "customizations": {
     "jetbrains": {
       "settings": {
+        "com.intellij:app:ProjectViewSharedSettings.showScratchesAndConsoles": false,
         "com.intellij.database:app:DatabaseSettings.enable-local-filter-by-default": false,
         "com.intellij:app:EditorSettings.soft_wrap_file_masks": "*.md; *.txt; *.rst; *.adoc; *.java; *.*; *",
         "org.jetbrains.plugins.github:app:GithubSettings.clone_git_using_ssh": true,
@@ -53,12 +54,12 @@
   },
   "remoteUser": "deno",
   "mounts": [
-    {
-      "source": "${localEnv:HOME}/.ssh",
-      "target": "/home/deno/.ssh",
-      "type": "bind",
-      "options": ["readonly"]
-    },
+//    {
+//      "source": "${localEnv:HOME}/.ssh",
+//      "target": "/home/deno/.ssh",
+//      "type": "bind",
+//      "options": ["readonly"]
+//    },
     {
       "source": "fish_history",
       "target": "/home/deno/.local/share/fish",
